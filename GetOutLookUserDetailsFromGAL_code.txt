@@ -1,0 +1,175 @@
+Sub OutlookContactsToExcelWorksheet1()
+Dim applOutlook As Outlook.Application
+Dim nsOutlook As Outlook.Namespace
+Dim cFolder As Outlook.Folder
+Dim subFolder1 As Outlook.Folder
+Dim delFolder As Outlook.Folder
+Dim delItems As Outlook.Items
+Dim cItems As Outlook.Items
+Dim cItem As Outlook.ContactItem
+Dim i As Long, n As Long, c As Long, lastRow As Long
+Dim wb As Workbook, ws As Worksheet
+
+'Create a new instance of the Outlook application. Set the Application object as follows:
+Set applOutlook = New Outlook.Application
+
+'use the GetNameSpace method to instantiate (ie. create an instance) a NameSpace object variable, to access existing Outlook items. Set the NameSpace object as follows:
+Set nsOutlook = applOutlook.GetNamespace("MAPI")
+'set the workbook:
+Set wb = ThisWorkbook
+'set the worksheet where you want to post Outlook data:
+Set ws = wb.Sheets("Sheet1")
+
+'set and format headings in the worksheet:
+ws.Cells(1, 1).Value = "First Name"
+ws.Cells(1, 2).Value = "Last Name"
+ws.Cells(1, 3).Value = "Email Address"
+ws.Cells(1, 4).Value = "Company Name"
+ws.Cells(1, 5).Value = "Mobile Telephone Number"
+
+With ws.Range("A1:E1")
+
+.Font.Bold = True
+.HorizontalAlignment = xlCenter
+
+End With
+
+'export contacts from a specific Contact Items Folder.
+'set reference to the folder named "cont" under the parent folder "Personal Folders":
+Set cFolder = nsOutlook.Folders("Global Address List")
+Set subFolder1 = cFolder.Folders("Global Address List")
+'set the items collection:
+Set cItems = subFolder1.Items
+
+'post each outlook item in the items collection, to a new worksheet row:
+i = 1
+
+For Each cItem In cItems
+
+'start posting in worksheet from the second row:
+i = i + 1
+'post only those contacts which have a Last Name:
+If cItem.LastName <> "" Then
+
+ws.Cells(i, 1).Value = cItem.FirstName
+ws.Cells(i, 2).Value = cItem.LastName
+ws.Cells(i, 3).Value = cItem.Email1Address
+ws.Cells(i, 4).Value = cItem.CompanyName
+ws.Cells(i, 5).Value = cItem.MobileTelephoneNumber
+
+End If
+
+Next
+
+'determine last data row, basis column B (contains Last Name):
+lastRow = ws.Cells(Rows.Count, "B").End(xlUp).Row
+
+'format worksheet data area:
+ws.Range("A2:E" & lastRow).Sort Key1:=ws.Range("B2"), Order1:=xlAscending
+ws.Range("A2:E" & lastRow).HorizontalAlignment = xlLeft
+ws.Columns("A:E").EntireColumn.AutoFit
+
+'quit the Oulook application:
+applOutlook.Quit
+
+'clear the variables:
+Set applOutlook = Nothing
+Set nsOutlook = Nothing
+Set cFolder = Nothing
+Set subFolder1 = Nothing
+Set delFolder = Nothing
+Set delItems = Nothing
+Set cItems = Nothing
+Set cItem = Nothing
+
+
+End Sub
+-----------------------------------------------------------------------------------------------------------------------------------
+'Working Code!
+Sub GetAllGALMembers()
+    
+    Dim i As Long, lastRow As Long, hitCounter As Long
+    Dim resultArray() As Variant
+    Dim outlApp As Outlook.Application
+    Dim outlNameSpace As Outlook.Namespace
+    Dim outlGAL As Outlook.AddressList
+    Dim outlEntry As Outlook.AddressEntries
+    Dim outlMember As Outlook.AddressEntry
+    
+    'Set up Outlook
+    Set outlApp = Outlook.Application
+    Set outlNameSpace = outlApp.GetNamespace("MAPI")
+    Set outlGAL = outlNameSpace.GetGlobalAddressList()
+    
+    hitCounter = 0
+
+    'clear all current entries
+    lastRow = GAL.Cells.Find("*", , , , xlByRows, xlPrevious).Row
+    
+    If lastRow > 9 Then
+        GAL.Range(Cells(10, 1).Address, Cells(lastRow, 9).Address).Delete xlShiftUp
+    End If
+    
+    'store address entries
+    Set outlEntry = outlGAL.AddressEntries
+    
+    On Error Resume Next
+
+    'loop through address entries and extract details
+    For i = 1 To outlEntry.Count
+        Application.StatusBar = "Export: &i & " \ " outlEntryCount"
+
+        Set outlMember = outlEntry.Item(i)
+        
+        'check if address type is user type (not e.g distribution list)
+        If outlMember.AddressEntryUserType = olExchangeUserAddressEntry Then
+            
+            hitCounter = hitCounter + 1
+            
+            ReDim Preserve resultArray(1 To 9, 1 To hitCounter)
+            
+            'add to array
+            'display name
+            resultArray(1, hitCounter) = outlMember.GetExchangeUser.Name
+            'FirstName
+            resultArray(2, hitCounter) = outlMember.GetExchangeUser.FirstName
+            'LastName
+            resultArray(3, hitCounter) = outlMember.GetExchangeUser.LastName
+            'Phone
+            resultArray(4, hitCounter) = outlMember.GetExchangeUser.BusinessTelephoneNumber
+            'Email
+            resultArray(5, hitCounter) = outlMember.GetExchangeUser.PrimarySmtpAddress
+            'Title
+            resultArray(6, hitCounter) = outlMember.GetExchangeUser.JobTitle
+            'Department
+            resultArray(7, hitCounter) = outlMember.GetExchangeUser.Department
+            'Location
+            resultArray(8, hitCounter) = outlMember.GetExchangeUser.OfficeLocation
+            'City
+            resultArray(9, hitCounter) = outlMember.GetExchangeUser.City
+        
+            
+        End If
+    Next i
+    
+    'print results to GAL Data Tab
+    resultArray = f_transposeArray(resultArray)
+    
+    GAL.Cells(10, 1).Resize(UBound(resultArray, 1), UBound(resultArray, 2)).Value = resultArray
+            
+    'save the workbook with results
+    ThisWorkbook.Save
+    
+    'update details
+    GAL.Cells(5, 2) = Now()
+    
+    GAL.Cells(6, 2) = Application.UserName
+
+    'clear the variables
+    Set outlApp = Nothing
+    Set outlNameSpace = Nothing
+    Set outlGAL = Nothing
+
+End Sub
+Copy
+The example file contains the f_transpose function, for d
